@@ -1,0 +1,24 @@
+{
+    "app": {
+        "name": "go-skeleton-code"
+    },
+    "web": {
+        "prefork": false,
+        "port": 3000
+    },
+    "log": {
+        "level": 6
+    },
+    "database": {
+        "username": "postgres",
+        "password": "postgres",
+        "host": "localhost",
+        "port": 5432,
+        "name": "skeleton_db",
+        "pool": {
+            "idle": 10,
+            "max": 100,
+            "lifetime": 300
+        }
+    }
+}
