@@ -1,8 +1,4 @@
-.PHONY: run build tidy lint test migrate copy-env
-
-# Copy .env.example to .env if .env does not exist
-copy-env:
-	@if [ ! -f .env ]; then cp .env.example .env && echo ".env created from .env.example"; fi
+.PHONY: run build tidy lint test
 
 # Install / tidy Go modules
 tidy:
@@ -10,11 +6,11 @@ tidy:
 
 # Build the binary
 build:
-	go build -o bin/app ./cmd/main.go
+	go build -o bin/app ./internal/cmd/main.go
 
-# Run the application (copies .env first)
-run: copy-env
-	go run ./cmd/main.go
+# Run the application
+run:
+	go run ./internal/cmd/main.go
 
 # Run all tests
 test:
