@@ -1,6 +1,6 @@
 # go-skeleton-code
 
-A **production-ready Golang REST API skeleton** using **Clean Architecture**, built with Gin, GORM, PostgreSQL, and Zap.
+A **production-ready Golang REST API skeleton** using **Clean Architecture**, built with Fiber v3, GORM, PostgreSQL, Viper, and Logrus.
 
 ---
 
@@ -8,42 +8,21 @@ A **production-ready Golang REST API skeleton** using **Clean Architecture**, bu
 
 ```
 go-skeleton-code/
-├── cmd/
-│   └── main.go                          # Entry point — manual DI & graceful shutdown
 ├── internal/
-│   ├── domain/                          # Domain Layer (entities, interfaces, errors)
-│   │   └── contact/
-│   │       ├── entity.go
-│   │       ├── repository.go            # Repository interface
-│   │       ├── usecase.go               # Usecase interface + input types
-│   │       └── errors.go                # Sentinel errors
-│   ├── repository/                      # Repository Layer (GORM implementations)
-│   │   └── contact/
-│   │       └── postgres_repository.go
-│   ├── usecase/                         # Usecase Layer (business logic)
-│   │   └── contact/
-│   │       └── usecase.go
-│   ├── delivery/                        # Delivery Layer (Gin handlers, DTOs, router)
+│   ├── cmd/                             # Entry point (main.go)
+│   ├── config/                          # Viper, Fiber, GORM, Logrus, and Validator setup
+│   ├── delivery/                        # Delivery Layer (Fiber controllers, router)
 │   │   └── http/
-│   │       ├── dto/
-│   │       │   └── contact_dto.go
-│   │       ├── handler/
-│   │       │   └── contact_handler.go
-│   │       ├── middleware/
-│   │       │   └── logger.go
-│   │       └── router/
-│   │           └── router.go
-│   └── infrastructure/                 # Infrastructure Layer
-│       ├── config/
-│       │   └── config.go               # Env config loader
-│       ├── database/
-│       │   └── postgres.go             # GORM + auto-migrate
-│       ├── logger/
-│       │   └── logger.go               # Zap logger
-│       └── httpclient/
-│           └── client.go               # External HTTP client
-├── .env.example
-├── Makefile
+│   │       ├── router/                  # Route registration
+│   │       └── example_controller.go
+│   ├── entity/                          # Domain entities (GORM structs)
+│   ├── model/                           # Request/Response models and converters
+│   │   └── converter/
+│   ├── repository/                      # Database operations (GORM implementations)
+│   └── usecase/                         # Business logic orchestration
+├── test/                                # Testing files (e.g., HTTP request tests)
+├── config.json                          # Application configuration file
+├── Makefile                             # Make commands for build, run, and test
 └── go.mod
 ```
 
@@ -53,19 +32,19 @@ go-skeleton-code/
 
 | Layer          | Technology                      |
 |----------------|---------------------------------|
-| Language       | Go 1.22+                        |
-| HTTP Framework | Gin                             |
+| Language       | Go 1.25+                        |
+| HTTP Framework | Fiber v3                        |
 | ORM            | GORM                            |
 | Database       | PostgreSQL                      |
-| Logging        | Uber Zap (structured)           |
-| Config         | godotenv + os.Getenv            |
-| HTTP Client    | net/http (wrapped)              |
+| Logging        | Logrus                          |
+| Config         | Viper                           |
+| Validation     | Validator v10                   |
 
 ---
 
 ## Prerequisites
 
-- Go 1.22+
+- Go 1.25+
 - PostgreSQL running locally (or via Docker)
 - `make` (optional but recommended)
 
@@ -78,13 +57,11 @@ go-skeleton-code/
 git clone https://github.com/yourusername/go-skeleton-code.git
 cd go-skeleton-code
 
-# 2. Copy and configure environment
-cp .env.example .env
-# Edit .env with your PostgreSQL credentials
+# 2. Configure environment
+# Edit config.json with your PostgreSQL credentials and app settings
 
 # 3. Create the database (if it doesn't exist yet)
 psql -h localhost -U postgres -c "CREATE DATABASE skeleton_db"
-
 
 # Or, if PostgreSQL is running inside Docker:
 # docker exec -it <postgres-container-name> psql -U postgres -c "CREATE DATABASE skeleton_db;"
@@ -94,80 +71,65 @@ make tidy
 
 # 5. Run the application
 make run
+# Or manually: go run ./internal/cmd/main.go
 ```
 
-The server will start on `http://localhost:8080`.
+The server will start on `http://localhost:3000`.
 
 ---
 
 ## API Endpoints
 
-Base URL: `http://localhost:8080/api/v1`
+Base URL: `http://localhost:3000/api`
 
 | Method | Path             | Description           |
 |--------|------------------|-----------------------|
-| GET    | `/health`        | Health check          |
-| POST   | `/contacts`      | Create a contact      |
-| GET    | `/contacts`      | List all contacts     |
-| GET    | `/contacts/:id`  | Get contact by ID     |
-| PUT    | `/contacts/:id`  | Update a contact      |
-| DELETE | `/contacts/:id`  | Delete a contact      |
+| POST   | `/example`       | Create an example     |
 
 ---
 
 ## Curl Examples
 
 ```bash
-# Health check
-curl http://localhost:8080/health
-
-# Create a contact
-curl -X POST http://localhost:8080/api/v1/contacts \
+# Create an example
+curl -X POST http://localhost:3000/api/example \
   -H "Content-Type: application/json" \
   -d '{
-    "name":    "Alice Smith",
-    "email":   "alice@example.com",
-    "message": "Hello, I would like to get in touch with your team."
+    "name": "Nanda",
+    "email": "nanda@gmail.com"
   }'
-
-# List all contacts
-curl http://localhost:8080/api/v1/contacts
-
-# Get contact by ID
-curl http://localhost:8080/api/v1/contacts/1
-
-# Update a contact
-curl -X PUT http://localhost:8080/api/v1/contacts/1 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name":    "Alice Updated",
-    "email":   "alice.updated@example.com",
-    "message": "Updated message with sufficient length here."
-  }'
-
-# Delete a contact
-curl -X DELETE http://localhost:8080/api/v1/contacts/1
 ```
 
 ---
 
-## Response Format
+## Configuration
 
-All endpoints return a consistent JSON envelope:
+This project uses `config.json` managed by Viper. Ensure `config.json` is present in the root directory.
 
-**Success:**
 ```json
 {
-  "success": true,
-  "data": { ... }
-}
-```
-
-**Error:**
-```json
-{
-  "success": false,
-  "error": "descriptive error message"
+    "app": {
+        "name": "go-skeleton-code"
+    },
+    "web": {
+        "prefork": false,
+        "port": 3000
+    },
+    "log": {
+        "level": 6
+    },
+    "database": {
+        "username": "postgres",
+        "password": "postgres",
+        "host": "localhost",
+        "port": 5432,
+        "name": "skeleton_db",
+        "pool": {
+            "idle": 10,
+            "max": 100,
+            "lifetime": 300
+        }
+    }
 }
 ```
 
@@ -175,56 +137,30 @@ All endpoints return a consistent JSON envelope:
 
 ## Architecture
 
-This project follows **Clean Architecture** (also known as Hexagonal / Ports & Adapters):
+This project follows **Clean Architecture**:
 
 ```
-Delivery → Usecase → Domain ← Repository
-              ↑                    ↑
-         (interface)          (interface)
+Delivery → Usecase → Repository → Database
 ```
 
-- **Domain** knows nothing about HTTP, databases, or frameworks.
-- **Usecase** orchestrates business rules using domain interfaces.
+- **Entity** represents the database schema.
+- **Model** defines the payload for requests and responses.
 - **Repository** implements persistence using GORM.
-- **Delivery** handles HTTP concerns (validation, serialization).
-- **Infrastructure** wires concrete implementations together.
-
-Dependencies always point **inward** — outer layers depend on inner layers, never the reverse.
-
----
-
-## Environment Variables
-
-| Variable                | Default                               | Description                    |
-|-------------------------|---------------------------------------|--------------------------------|
-| `APP_ENV`               | `development`                         | `development` or `production`  |
-| `SERVER_PORT`           | `8080`                                | HTTP server port               |
-| `DB_HOST`               | `localhost`                           | PostgreSQL host                |
-| `DB_PORT`               | `5432`                                | PostgreSQL port                |
-| `DB_USER`               | `postgres`                            | Database user                  |
-| `DB_PASSWORD`           | *(empty)*                             | Database password              |
-| `DB_NAME`               | `skeleton_db`                         | Database name                  |
-| `DB_SSLMODE`            | `disable`                             | SSL mode                       |
-| `DB_MAX_OPEN_CONNS`     | `25`                                  | Max open DB connections        |
-| `DB_MAX_IDLE_CONNS`     | `5`                                   | Max idle DB connections        |
-| `LOG_LEVEL`             | `info`                                | `debug` / `info` / `warn` / `error` |
-| `EXTERNAL_API_BASE_URL` | `https://jsonplaceholder.typicode.com`| External API base URL          |
-| `EXTERNAL_API_TIMEOUT_SEC` | `10`                               | External API timeout (seconds) |
+- **Usecase** orchestrates business rules.
+- **Delivery** handles HTTP concerns using Fiber (controllers).
+- **Config** wires concrete implementations together and initializes libraries.
 
 ---
 
 ## Extending the Project
 
-To add a new feature (e.g. `user`), follow this checklist:
+To add a new feature (e.g., `user`), follow this workflow:
 
-1. Create `internal/domain/user/entity.go` — struct + table name
-2. Create `internal/domain/user/repository.go` — interface
-3. Create `internal/domain/user/usecase.go` — interface + inputs
-4. Create `internal/domain/user/errors.go` — sentinel errors
-5. Create `internal/repository/user/postgres_repository.go` — GORM impl
-6. Create `internal/usecase/user/usecase.go` — business logic
-7. Create `internal/delivery/http/dto/user_dto.go` — request/response DTOs
-8. Create `internal/delivery/http/handler/user_handler.go` — Gin handlers
-9. Register route group in `internal/delivery/http/router/router.go`
-10. Register model in `internal/infrastructure/database/postgres.go` → `autoMigrate`
-11. Wire dependencies in `cmd/main.go`
+1. **Entity**: Create `internal/entity/user_entity.go` for the database schema.
+2. **Model**: Create `internal/model/user_model.go` for request/response bodies.
+3. **Converter**: Create `internal/model/converter/user_converter.go` to convert between Entity and Model.
+4. **Repository**: Create `internal/repository/user_repository.go` for database operations.
+5. **Usecase**: Create `internal/usecase/user_usecase.go` for business logic.
+6. **Controller**: Create `internal/delivery/http/user_controller.go` to handle HTTP requests.
+7. **Route**: Register the route group in `internal/delivery/http/router/route/route.go`.
+8. **Wiring**: Wire the dependencies and register the controller in `internal/config/app.go`.
