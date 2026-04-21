@@ -16,6 +16,8 @@ go-skeleton-code/
 │   │       ├── router/                  # Route registration
 │   │       └── example_controller.go
 │   ├── entity/                          # Domain entities (GORM structs)
+│   ├── gateway/                         # Outbound HTTP clients (go-resty)
+│   │   └── http/                        # HTTPGateway — GET/POST/PUT/PATCH/DELETE
 │   ├── model/                           # Request/Response models and converters
 │   │   └── converter/
 │   ├── repository/                      # Database operations (GORM implementations)
@@ -39,6 +41,7 @@ go-skeleton-code/
 | Logging        | Logrus                          |
 | Config         | Viper                           |
 | Validation     | Validator v10                   |
+| HTTP Client    | go-resty v2                     |
 
 ---
 
@@ -140,15 +143,75 @@ This project uses `config.json` managed by Viper. Ensure `config.json` is presen
 This project follows **Clean Architecture**:
 
 ```
-Delivery → Usecase → Repository → Database
+HTTP Request → Controller → Usecase → Repository → PostgreSQL
+                                ↓
+                          Gateway (outbound HTTP)
 ```
 
 - **Entity** represents the database schema.
 - **Model** defines the payload for requests and responses.
-- **Repository** implements persistence using GORM.
+- **Repository** implements persistence using GORM. A generic `Repository[T]` base provides `Create`, `Update`, `Delete`, and `FindById` — domain repositories embed it and add domain-specific queries.
 - **Usecase** orchestrates business rules.
 - **Delivery** handles HTTP concerns using Fiber (controllers).
+- **Gateway** wraps outbound HTTP calls via go-resty (`internal/gateway/http`, package `httpgateway`).
 - **Config** wires concrete implementations together and initializes libraries.
+
+---
+
+## HTTP Gateway
+
+`HTTPGateway` is an outbound HTTP client built on go-resty. Use it to call external services from your usecases.
+
+### Construction
+
+```go
+gw := httpgateway.New(
+    httpgateway.WithBaseURL("https://api.example.com"),
+    httpgateway.WithTimeout(10 * time.Second),
+    httpgateway.WithRetryCount(3),
+    httpgateway.WithRetryWaitTime(2 * time.Second),
+    httpgateway.WithHeaders(map[string]string{"Authorization": "Bearer <token>"}),
+)
+```
+
+Defaults (applied when no option overrides): 30s timeout, 3 retries, 2s retry wait, `Content-Type: application/json` and `Accept: application/json`.
+
+### Methods
+
+All methods share the same signature pattern and return `(*Response, error)`.
+
+```go
+// GET
+resp, err := gw.Get(ctx, "/users/1", headers, queryParams, &result)
+
+// POST
+resp, err := gw.Post(ctx, "/users", headers, body, &result)
+
+// PUT
+resp, err := gw.Put(ctx, "/users/1", headers, body, &result)
+
+// PATCH
+resp, err := gw.Patch(ctx, "/users/1", headers, body, &result)
+
+// DELETE
+resp, err := gw.Delete(ctx, "/users/1", headers, &result)
+```
+
+Pass `nil` for `headers`, `queryParams`, or `result` when not needed.
+
+### Error Handling
+
+Non-2xx responses return `*HTTPError`. Use `httpgateway.AsHTTPError` to inspect the status code:
+
+```go
+resp, err := gw.Get(ctx, "/resource", nil, nil, &result)
+if err != nil {
+    if httpErr, ok := httpgateway.AsHTTPError(err); ok {
+        // httpErr.StatusCode, httpErr.Body, httpErr.URL
+    }
+    return err
+}
+```
 
 ---
 
@@ -164,3 +227,5 @@ To add a new feature (e.g., `user`), follow this workflow:
 6. **Controller**: Create `internal/delivery/http/user_controller.go` to handle HTTP requests.
 7. **Route**: Register the route group in `internal/delivery/http/router/route/route.go`.
 8. **Wiring**: Wire the dependencies and register the controller in `internal/config/app.go`.
+
+To call an external service, inject an `*httpgateway.HTTPGateway` into your usecase and use the appropriate method.
