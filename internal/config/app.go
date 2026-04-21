@@ -9,6 +9,8 @@ import (
 
 	"github.com/yourusername/go-skeleton-code/internal/delivery/http"
 	"github.com/yourusername/go-skeleton-code/internal/delivery/http/router/route"
+
+	// httpGateway "github.com/yourusername/go-skeleton-code/internal/gateway/http"
 	"github.com/yourusername/go-skeleton-code/internal/repository"
 	"github.com/yourusername/go-skeleton-code/internal/usecase"
 )
@@ -22,6 +24,12 @@ type AppConfig struct {
 }
 
 func App(config *AppConfig) {
+	// setup gateway httpClient
+	// gtw := httpGateway.New(
+	// 	httpGateway.WithBaseURL(config.Config.GetString("api.example.base_url")),
+	// 	httpGateway.WithTimeout(config.Config.GetDuration("api.example.duration")),
+	// )
+
 	// setup repositories
 	exampleRepository := repository.NewExampleRepository(config.Log)
 
